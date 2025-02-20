@@ -5,12 +5,17 @@ pygame.init()
 ANCHO, ALTO = 740, 515
 ventana = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Arkanoid Mejorado")
+fondo = pygame.image.load("Planeta-Namek.jpg")
+def Fondo(fondo):
+    size = pygame.transform.scale(fondo, (740, 515))
+    ventana.blit(size, (0 , 0))
+
 
 # Cargar imágenes
 ball = pygame.image.load("pelotita.png")
 barra = pygame.image.load("Manos_g.png")
 ladrillo = pygame.image.load("NUEVO FREEZER.png")
-ladrillo_irrompible = pygame.image.load("Freezer chiquito.png")  # Nuevo ladrillo
+ladrillo_irrompible = pygame.image.load("Freezer chiquito.png")  # Ladrillo irrompible
 ladrillo_endurecido_1 = pygame.image.load("Zarbon.png")  # Nivel 1
 ladrillo_endurecido_2 = pygame.image.load("dodoria.png")  # Nivel 2
 
@@ -23,7 +28,7 @@ barrarect.move_ip(240, 450)
 # Velocidad de la pelota
 speed = [randint(3, 6), randint(3, 6)]
 barra_speed = 6  # Velocidad inicial de la barra
-aceleracion_barra = 0.3  # Cuánto aumenta la velocidad al mantener presionada la tecla
+aceleracion_barra = 0.3  # Aceleración al mantener la tecla presionada
 
 # Fuente para los mensajes
 fuente = pygame.font.Font(None, 36)
@@ -50,29 +55,35 @@ class LadrilloEndurecido(Ladrillo):
         if self.nivel == 1:
             self.image = ladrillo_endurecido_2  # Cambiar color al nivel 1
 
-# Listas para almacenar los ladrillos
+# Lista de ladrillos y posiciones ocupadas
 ladrillos = []
-filas, columnas = 4, 7
-espacio_horizontal = 12
-espacio_vertical = 15
+posiciones_ocupadas = []
 
-# Posicionar los ladrillos en la parte superior
+def posicion_valida(x, y, ancho, alto):
+    """Verifica si la posición es válida (sin colisiones)"""
+    for px, py in posiciones_ocupadas:
+        if abs(px - x) < ancho and abs(py - y) < alto:
+            return False  # Hay solapamiento
+    return True  # No hay colisión
+
+# Generar ladrillos aleatorios sin solapamiento
 ladrillo_width = ladrillo.get_width()
 ladrillo_height = ladrillo.get_height()
-total_width = (columnas * ladrillo_width) + ((columnas - 1) * espacio_horizontal)
-inicio_x = (ANCHO - total_width) // 2
-
-for fila in range(filas):
-    for columna in range(columnas):
-        x = inicio_x + columna * (ladrillo_width + espacio_horizontal)
-        y = fila * (ladrillo_height + espacio_vertical) + 30
-        
-        if fila == 0:  # Primera fila con ladrillos irrompibles
-            ladrillos.append(LadrilloIrrompible(x, y, ladrillo_irrompible))
-        elif fila == 1:  # Segunda fila con ladrillos endurecidos
-            ladrillos.append(LadrilloEndurecido(x, y))
-        else:  # Filas normales
-            ladrillos.append(Ladrillo(x, y, ladrillo))
+for _ in range(15):  # Número total de ladrillos
+    while True:
+        x = randint(50, ANCHO - ladrillo_width - 50)
+        y = randint(50, 200)  # Espacio superior para ladrillos
+        if posicion_valida(x, y, ladrillo_width, ladrillo_height):
+            posiciones_ocupadas.append((x, y))
+            break  # Se encontró una posición válida
+    
+    tipo = randint(0, 2)  # Elegir tipo de ladrillo
+    if tipo == 0:
+        ladrillos.append(LadrilloIrrompible(x, y, ladrillo_irrompible))
+    elif tipo == 1:
+        ladrillos.append(LadrilloEndurecido(x, y))
+    else:
+        ladrillos.append(Ladrillo(x, y, ladrillo))
 
 # Bucle principal del juego
 jugando = True
@@ -123,11 +134,11 @@ while jugando:
 
     # Condición de victoria
     if not ladrillos_rompibles:  # Si no quedan ladrillos normales o endurecidos, ganas
-     texto = fuente.render("¡Ganaste!", True, (0, 255, 0))
-     ventana.blit(texto, [ANCHO / 2 - texto.get_width() / 2, ALTO / 2])
-     pygame.display.flip()
-     pygame.time.delay(3000)
-     jugando = False
+        texto = fuente.render("¡Ganaste!", True, (0, 255, 0))
+        ventana.blit(texto, [ANCHO / 2 - texto.get_width() / 2, ALTO / 2])
+        pygame.display.flip()
+        pygame.time.delay(3000)
+        jugando = False
 
     # Game Over si la pelota cae
     if ballrect.bottom > ventana.get_height():
@@ -138,7 +149,8 @@ while jugando:
         jugando = False
 
     # Dibujar elementos
-    ventana.fill((252, 243, 207))
+    ventana.fill((0, 255, 0))
+    Fondo(fondo)
     ventana.blit(ball, ballrect)
     ventana.blit(barra, barrarect)
 

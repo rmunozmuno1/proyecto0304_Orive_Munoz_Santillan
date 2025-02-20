@@ -62,17 +62,29 @@ ladrillo_height = ladrillo.get_height()
 total_width = (columnas * ladrillo_width) + ((columnas - 1) * espacio_horizontal)
 inicio_x = (ANCHO - total_width) // 2
 
-for fila in range(filas):
-    for columna in range(columnas):
-        x = inicio_x + columna * (ladrillo_width + espacio_horizontal)
-        y = fila * (ladrillo_height + espacio_vertical) + 30
+# Evitar solapamiento
+def posicion_valida(x, y, ladrillos):
+    for ladrillo_obj in ladrillos:
+        if abs(x - ladrillo_obj.rect.x) < ladrillo_width and abs(y - ladrillo_obj.rect.y) < ladrillo_height:
+            return False  # Se superpone con otro ladrillo
+    return True
+
+# Generar ladrillos aleatorios sin solaparse
+contador_irrompibles = 0  # Solo los 3 primeros serán irrompibles
+for _ in range(filas * columnas):
+    while True:
+        x = randint(50, ANCHO - ladrillo_width - 50)
+        y = randint(30, 200)
         
-        if fila == 0:  # Primera fila con ladrillos irrompibles
-            ladrillos.append(LadrilloIrrompible(x, y, ladrillo_irrompible))
-        elif fila == 1:  # Segunda fila con ladrillos endurecidos
-            ladrillos.append(LadrilloEndurecido(x, y))
-        else:  # Filas normales
-            ladrillos.append(Ladrillo(x, y, ladrillo))
+        if posicion_valida(x, y, ladrillos):  # Asegurar que no se superpongan
+            if contador_irrompibles < 3:
+                ladrillos.append(LadrilloIrrompible(x, y, ladrillo_irrompible))
+                contador_irrompibles += 1
+            elif randint(0, 2) == 0:
+                ladrillos.append(LadrilloEndurecido(x, y))
+            else:
+                ladrillos.append(Ladrillo(x, y, ladrillo))
+            break  # Salir del while si la posición es válida
 
 # Bucle principal del juego
 jugando = True
@@ -123,11 +135,11 @@ while jugando:
 
     # Condición de victoria
     if not ladrillos_rompibles:  # Si no quedan ladrillos normales o endurecidos, ganas
-     texto = fuente.render("¡Ganaste!", True, (0, 255, 0))
-     ventana.blit(texto, [ANCHO / 2 - texto.get_width() / 2, ALTO / 2])
-     pygame.display.flip()
-     pygame.time.delay(3000)
-     jugando = False
+        texto = fuente.render("¡Ganaste!", True, (0, 255, 0))
+        ventana.blit(texto, [ANCHO / 2 - texto.get_width() / 2, ALTO / 2])
+        pygame.display.flip()
+        pygame.time.delay(3000)
+        jugando = False
 
     # Game Over si la pelota cae
     if ballrect.bottom > ventana.get_height():
