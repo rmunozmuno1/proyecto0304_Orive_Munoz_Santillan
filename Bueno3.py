@@ -5,12 +5,17 @@ pygame.init()
 ANCHO, ALTO = 740, 515
 ventana = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Arkanoid Mejorado")
+fondo = pygame.image.load("Planeta-Namek.jpg")
+def Fondo(fondo):
+    size = pygame.transform.scale(fondo, (740, 515))
+    ventana.blit(size, (0 , 0))
+
 
 # Cargar imágenes
 ball = pygame.image.load("pelotita.png")
 barra = pygame.image.load("Manos_g.png")
 ladrillo = pygame.image.load("NUEVO FREEZER.png")
-ladrillo_irrompible = pygame.image.load("Freezer chiquito.png")  # Nuevo ladrillo
+ladrillo_irrompible = pygame.image.load("Freezer chiquito.png")  # Ladrillo irrompible
 ladrillo_endurecido_1 = pygame.image.load("Zarbon.png")  # Nivel 1
 ladrillo_endurecido_2 = pygame.image.load("dodoria.png")  # Nivel 2
 
@@ -23,7 +28,7 @@ barrarect.move_ip(240, 450)
 # Velocidad de la pelota
 speed = [randint(3, 6), randint(3, 6)]
 barra_speed = 6  # Velocidad inicial de la barra
-aceleracion_barra = 0.3  # Cuánto aumenta la velocidad al mantener presionada la tecla
+aceleracion_barra = 0.3  # Aceleración al mantener la tecla presionada
 
 # Fuente para los mensajes
 fuente = pygame.font.Font(None, 36)
@@ -50,41 +55,47 @@ class LadrilloEndurecido(Ladrillo):
         if self.nivel == 1:
             self.image = ladrillo_endurecido_2  # Cambiar color al nivel 1
 
-# Listas para almacenar los ladrillos
+# Lista de ladrillos y posiciones ocupadas
 ladrillos = []
-filas, columnas = 4, 7
-espacio_horizontal = 12
-espacio_vertical = 15
+posiciones_ocupadas = []
+irrompible_count = 0   # Contador para ladrillos irrompibles
 
-# Posicionar los ladrillos en la parte superior
+def posicion_valida(x, y, ancho, alto):
+    """Verifica si la posición es válida (sin colisiones)"""
+    for px, py in posiciones_ocupadas:
+        if abs(px - x) < ancho and abs(py - y) < alto:
+            return False  # Hay solapamiento
+    return True  # No hay colisión
+
+# Generar ladrillos aleatorios sin solapamiento
 ladrillo_width = ladrillo.get_width()
 ladrillo_height = ladrillo.get_height()
-total_width = (columnas * ladrillo_width) + ((columnas - 1) * espacio_horizontal)
-inicio_x = (ANCHO - total_width) // 2
-
-# Evitar solapamiento
-def posicion_valida(x, y, ladrillos):
-    for ladrillo_obj in ladrillos:
-        if abs(x - ladrillo_obj.rect.x) < ladrillo_width and abs(y - ladrillo_obj.rect.y) < ladrillo_height:
-            return False  # Se superpone con otro ladrillo
-    return True
-
-# Generar ladrillos aleatorios sin solaparse
-contador_irrompibles = 0  # Solo los 3 primeros serán irrompibles
-for _ in range(filas * columnas):
+for _ in range(15):  # Número total de ladrillos
     while True:
         x = randint(50, ANCHO - ladrillo_width - 50)
-        y = randint(30, 200)
-        
-        if posicion_valida(x, y, ladrillos):  # Asegurar que no se superpongan
-            if contador_irrompibles < 3:
-                ladrillos.append(LadrilloIrrompible(x, y, ladrillo_irrompible))
-                contador_irrompibles += 1
-            elif randint(0, 2) == 0:
+        y = randint(50, 200)  # Espacio superior para ladrillos
+        if posicion_valida(x, y, ladrillo_width, ladrillo_height):
+            posiciones_ocupadas.append((x, y))
+            break  # Se encontró una posición válida
+    
+    tipo = randint(0, 2)  # Elegir tipo de ladrillo
+    if tipo == 0:
+        if irrompible_count < 3:
+            ladrillos.append(LadrilloIrrompible(x, y, ladrillo_irrompible))
+            irrompible_count += 1
+        else:
+            tipo = randint(1, 2)
+            if tipo == 1:
                 ladrillos.append(LadrilloEndurecido(x, y))
             else:
                 ladrillos.append(Ladrillo(x, y, ladrillo))
-            break  # Salir del while si la posición es válida
+    elif tipo == 1:
+        ladrillos.append(LadrilloEndurecido(x, y))
+    else:
+        ladrillos.append(Ladrillo(x, y, ladrillo))
+
+# Variable para evitar rebotar varias veces con el mismo objeto
+ultimo_ladrillo_colisionado = None
 
 # Bucle principal del juego
 jugando = True
@@ -117,20 +128,27 @@ while jugando:
         speed[1] = -speed[1]
 
     # Colisión con los ladrillos
+    colision_ocurrida = False
     for ladrillo_obj in ladrillos[:]:
         if ballrect.colliderect(ladrillo_obj.rect):
-            if isinstance(ladrillo_obj, LadrilloIrrompible):
-                speed[1] = -speed[1]  # Rebota pero no se destruye
-            elif isinstance(ladrillo_obj, LadrilloEndurecido):
-                ladrillo_obj.debilitar()
-                if ladrillo_obj.nivel == 0:  # Se rompe si llega a nivel 0
+            colision_ocurrida = True
+            # Solo se procesa la colisión si es un objeto distinto al anterior
+            if ladrillo_obj != ultimo_ladrillo_colisionado:
+                if isinstance(ladrillo_obj, LadrilloIrrompible):
+                    speed[1] = -speed[1]  # Rebota pero no se destruye
+                elif isinstance(ladrillo_obj, LadrilloEndurecido):
+                    ladrillo_obj.debilitar()
+                    if ladrillo_obj.nivel == 0:  # Se rompe si llega a nivel 0
+                        ladrillos.remove(ladrillo_obj)
+                    speed[1] = -speed[1]
+                else:
                     ladrillos.remove(ladrillo_obj)
-                speed[1] = -speed[1]
-            else:
-                ladrillos.remove(ladrillo_obj)
-                speed[1] = -speed[1]
+                    speed[1] = -speed[1]
+                ultimo_ladrillo_colisionado = ladrillo_obj
             break  # Evitar múltiples colisiones en un solo frame
-   
+    if not colision_ocurrida:
+        ultimo_ladrillo_colisionado = None
+
     ladrillos_rompibles = [ladrillo for ladrillo in ladrillos if not isinstance(ladrillo, LadrilloIrrompible)]
 
     # Condición de victoria
@@ -150,7 +168,8 @@ while jugando:
         jugando = False
 
     # Dibujar elementos
-    ventana.fill((252, 243, 207))
+    ventana.fill((0, 255, 0))
+    Fondo(fondo)
     ventana.blit(ball, ballrect)
     ventana.blit(barra, barrarect)
 
